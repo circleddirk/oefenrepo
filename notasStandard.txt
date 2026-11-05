@@ -1,0 +1,95 @@
+nota's
+
+- in Init wordt momenteel Meas en Operating als in_out meegegeven waar niets mee gebeurt.
+- in Init wordt uitsluitend retaindata geschreven. Enige uitzondering is readrequest op Meas.
+
+- in HwIn wordt de drukknop onderdrukt bij startup. Dit hoort in operatingflow gedaan te worden.
+
+- de restart logic in CP¨operating is mogelijk overbodig. De transities van andere dan softreset naar startup worden niet gebruikt.
+
+Prioriteit:
+Drukknop
+Operating Flow
+AC uitgang - ook 3VA2?
+Led
+Buzzer
+Gensetsturing
+schakelbare circuits
+
+Battery properties:
+Meas.Bat.Hw.In.WV := IOs.ListBatterySpecificInfo[12];
+Meas.Bat.Hw.In.WI := IOs.ListBatterySpecificInfo[13];
+Meas.Bat.Hw.In.WP := IOs.ListBMS1Info[2];	
+Meas.Bat.Hw.In.WSoc := IOs.ListBMS1Info[3];
+Meas.Bat.Hw.In.WSoh := IOs.ListBMS1Info[4];
+
+Dit kan mogelijks gemeenschappelijk gemaakt worden van 120 en 240. de WP komt niet voor in 240.
+
+nodig in operatingflow:
+meting 
+soc
+
+par 
+lowsocshutdown
+lowsoccleared
+
+Na gesprek met Sander en Simon:
+Batt component maken, dat de soc aflevert. Ofwel afgeleid (verschaald?) van modbus tcp, ofwel zelf 'gegokt' op basis van V, I, W? 
+Dit algoritme wordt wellicht productspecifiek, omdat elke batterij een andere curve heeft. Standaard is wel dat deze CM een valid of
+mss alarm bit aflevert die 'onbetrouwbare soc' ofzoiets heet, en daardoor de operating flow in error gooit.
+
+generieke data:
+soc
+batt_full (uit state information)
+
+de BatFull is bij 120 op basis van chargeProhibited, maar een overvoltage is niet altijd gelijk aan batt full. batfull is iets lager.
+wel is het zo dat dit af en toe moet gebeuren als een soort van soc calibratie, omdat anders de 'gok' een beetje verloopt en dit als verloop
+cumuleert kan soc zeer onnauwkeurig zouden (tot 25% fout). 
+
+de grensparameters ook op CM niveau plaatsen, en voorstel grensbitjes te voorzien zodat de operatingflow leesbaarder wordt:
+LowSocShutdown
+LowSocCleared
+LowSocPreAlarm
+(LowSoc) wordt niet gebruikt.
+
+grensbitjes:
+SocLargerLowSocCleared
+
+AboveLowSocCleared
+BelowLowSocShutdown
+AboveLowSocShutdown
+BelowLowSocPreAlarm
+
+
+Deze CM voorzien van een interface naar een custom function block om BMS specifieke dingen toe te voegen, maar ook te scheiden van standaard.
+
+de kleinste voltage van de 'zwakste' cel wordt doorgegeven. De laagste toegelaten is nu hardcoded in de 120, maar hoort een parameter te worden.
+
+vcelmin: generator start.
+Onder soc (30-parameter) schiet generator aan.
+als hij op 90 stop hij.
+kan zijn dat hij op 40% al op Vcelminimum zit.
+In dat geval gaan we sneller generator opstarten.
+
+je krijgt ook de max
+
+chargeprobihit bestaat ook. 
+
+er is nog iets uit te werken: er is de celvoltage van de zwakste cel, en het celvoltage van de sterkste cel. 
+Als omwille van de sterkste cel een chargeprohibited hoog wordt, moet of mag soms toch nog geladen worden
+omdat het voltage van de zwakste cel niet hoog genoeg is. 
+Het stoppen met laden is dus behalve op het celvoltage van de sterkste cel ook afhankelijk van het celvoltage van de zwakste cel.
+
+Bij 120 is er een empirische screen timer, terwijl bij 240 er een soort 'ready' bit van de bms komt om te mogen opstarten. Deze bit bestaat niet bij 120,
+daarom is er daar een empirische timer nodig. Bij de 120 is er wel een digitale ding dat hier niet voor geschikt is of zoiets.
+
+Screentimer is dus custom, maar de soort van 'readyToStart' bit standaard. Bij de 120 komt de readyToStart bit op op basis van de empirische timer,
+bij de 240 op basis van een ready bit uit de BMS.
+Voorstel is om de screentimer op te nemen in de 'standaard' CM battery.
+
+Hoe zit het nu? Er is iets wat aangestuurd wordt vanuit de plc, op de 240 zowiezo, op de 120 na een screentimer... modbus register 'writebatteryoncommand'. Dit is een word, maar dan een array van woorden met één enkel woord in, en dan nog 's enkel de waarde 1 en 0 kan hebben.
+
+
+
+
+
