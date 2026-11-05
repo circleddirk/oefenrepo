@@ -89,7 +89,7 @@ Voorstel is om de screentimer op te nemen in de 'standaard' CM battery.
 
 Hoe zit het nu? Er is iets wat aangestuurd wordt vanuit de plc, op de 240 zowiezo, op de 120 na een screentimer... modbus register 'writebatteryoncommand'. Dit is een word, maar dan een array van woorden met één enkel woord in, en dan nog 's enkel de waarde 1 en 0 kan hebben.
 
-fake wijziging ongedaan maken.
+fake wijziging in branch maken.
 
 
 
