@@ -1,0 +1,821 @@
+{
+  "name": "Neargrid",
+  "description": "Unit Neargrid standard",
+  "ems": {
+    "Operating": {
+      "name": "Operating",
+      "description": "Equipment module operating",
+      "cms": {
+        "PushBtn": {
+          "name": "PushBtn",
+          "description": "Control module drukknop",
+          "itemType": "PbSl",
+          "itemTypeDerived": true
+        },
+        "Rfid": {
+          "name": "Rfid",
+          "description": "Control module Rfid reader",
+          "itemType": "DigIn",
+          "itemTypeDerived": true
+        },
+        "AC_OUT": {
+          "name": "AC_OUT",
+          "description": "Control module MCCB",
+          "itemType": "Mccb",
+          "itemTypeDerived": true
+        },
+        "Rgb": {
+          "name": "Rgb",
+          "description": "Control module RGB led",
+          "itemType": "RgbLed",
+          "itemTypeDerived": true
+        },
+        "Buzzer": {
+          "name": "Buzzer",
+          "description": "Control module Buzzer",
+          "itemType": "SoftBuzz",
+          "itemTypeDerived": true
+        },
+        "Batt": {
+          "name": "Batt",
+          "description": "Control module Battery",
+          "itemType": "Battery",
+          "itemTypeDerived": true
+        }
+      },
+      "phases": {
+        "OperatingFlow": {
+          "name": "OperatingFlow",
+          "description": "Phase OperatingFlow",
+          "itemType": "OperatingFlow",
+          "itemTypeDerived": true,
+          "State": [
+            "Startup",
+            "Active",
+            "Charge",
+            "Error",
+            "Softreset"
+          ],
+          "Trans": [
+            "StartupToActive",
+            "StartupToCharge",
+            "StartupToError",
+            "ActiveToCharge",
+            "ActiveToError",
+            "ChargeToActive",
+            "ChargeToError",
+            "ErrorToStartup",
+            "SoftresetToStartup"
+          ],
+          "ResetStates": ["Softreset"],
+          "vars": {
+            "NoGrid": "BOOL"
+          }
+        }
+      }
+    },
+    "TempControl": {
+      "name": "TempControl",
+      "description": "Equipment module temperature control",
+      "cms": {
+        "Ventilator": {
+          "name": "Ventilator",
+          "description": "Control module ventilator",
+          "itemType": "DigOutFb",
+          "itemTypeDerived": true
+        }
+      },
+      "phases": {}
+    },
+    "Meas": {
+      "name": "Meas",
+      "description": "Equipment module measurement",
+      "cms": {
+        "Pbat": {
+          "name": "Pbat",
+          "description": "Control module vermogen batterij",
+          "itemType": "DigOutFb",
+          "itemTypeDerived": true
+        }
+      },
+      "phases": {}
+    }
+  },
+  "cmts": {
+    "PbSl": {
+      "name": "PbSl",
+      "description": "Control Module Type voor Push Button Short or Long",
+      "datamodel": {
+        "State": {
+          "Sv": "BOOL",
+          "ShortEdge": "BOOL",
+          "LongEdge": "BOOL"
+        },
+        "Hw": {
+          "In": {
+            "Xin": "BOOL"
+          }
+        }
+      },
+      "vars": {
+        "Fedge": "F_TRIG",
+        "Press": "BOOL",
+        "ArchesPressInTON": "TON",
+        "ArchesPressOutTON": "TON",
+        "BlockTON": "TON",
+        "LongPressTON":"TON",
+        "ShortPressTON":"TON",
+        "LongPushed": "BOOL",
+        "ShortPushed": "BOOL",
+        "ShortFedge": "BOOL",
+        "ShortPressTooLong": "BOOL",
+        "ShortRedge": "R_TRIG",
+        "LongRedge": "R_TRIG"
+      },
+      "regions": {
+        "State": [
+          "CM.State.Sv := Press;",
+          "Fedge(CLK:=CM.State.Sv);",
+          "LongPressTON(IN:=Press, PT:=T#5s);",
+          "IF LongPressTON.Q AND NOT ShortPushed THEN",
+          "  LongPushed := TRUE;",
+          "END_IF;",
+          "ShortPressTON(IN:=Press, PT:=T#2s);",
+          "IF ShortPressTON.Q THEN",
+          "  ShortPressTooLong := TRUE;",
+          "END_IF;",
+          "ShortFedge := Fedge.Q AND NOT ShortPressTooLong;",
+          "IF ShortFedge AND NOT LongPushed THEN",
+          "  ShortPushed := TRUE;",
+          "END_IF;",
+          "BlockTON(IN:=ShortPushed OR LongPushed, PT:=T#10s);",
+          "IF BlockTON.Q THEN",
+          "  ShortPushed := FALSE;",
+          "  LongPushed := FALSE;",
+          "  ShortPressTooLong := FALSE;",
+          "END_IF;",
+          "IF Fedge.Q THEN",
+          "  ShortPressTooLong := FALSE;",
+          "END_IF;",
+          "ShortRedge(CLK:=ShortPushed);",
+          "LongRedge(CLK:=LongPushed);",
+          "CM.State.ShortEdge := ShortRedge.Q;",
+          "CM.State.LongEdge := LongRedge.Q;"
+        ],
+        "Hw": [
+          "// Compute arches of button changes (debouncing)",
+          "ArchesPressInTON(In:=CM.Hw.In.Xin, PT:=t#50ms);",
+          "ArchesPressOutTON(In:=NOT CM.Hw.In.Xin, PT:=t#50ms);",
+          "IF ArchesPressInTON.Q THEN",
+          "  Press := TRUE;",
+          "ELSIF ArchesPressOutTON.Q THEN",
+          "  Press := FALSE;",
+          "END_IF;"
+        ]
+      },
+      "simulation": {
+        "SrXinShort": {
+          "vars": {
+            "setXinShortTon": "TON"
+          },
+          "Code": [
+            "  (* Common simulation *);"
+          ]
+        },
+        "SrXinLong": {
+          "vars": {
+            "setXinLongTon": "TON"
+          },
+          "Code": [
+            "  (* Common Dynamic simulation of Xin short and long *)",
+            "  setXinShortTon(IN:=SimCM.Cmd.SrXinShort, PT:=T#1s);",
+            "  IF setXinShortTon.Q THEN",
+            "     SimCM.Cmd.SrXinShort := FALSE;",
+            "  END_IF;",
+            "  setXinLongTon(IN:=SimCM.Cmd.SrXinLong, PT:=T#7s);",
+            "  IF setXinLongTon.Q THEN",
+            "     SimCM.Cmd.SrXinLong := FALSE;",
+            "  END_IF;",
+            "  SimCM.Cmd.Xin := SimCM.Cmd.SrXinLong OR SimCM.Cmd.SrXinShort;"
+          ]
+        }
+      }
+    },
+    "DigIn": {
+      "name": "DigIn",
+      "description": "Control Module Type voor Digitale Ingang",
+      "datamodel": {
+        "State": {
+          "Sv": "BOOL",
+          "Edge": "BOOL"
+        },
+        "Hw": {
+          "In": {
+            "Xin": "BOOL"
+          }
+        }
+      },
+      "vars": {
+        "Redge": "R_TRIG",
+        "Blocked": "BOOL",
+        "Block_Timer": "TON"
+      },
+      "regions": {
+        "State": [
+          "CM.State.Sv := CM.Hw.In.Xin;",
+          "// Edge: Rising edge of the sensor value, but blocked for 2 sec to prevent strange behaviour with contact bounce",
+          "Redge(clk:=CM.State.Sv);",
+          "CM.State.Edge := Redge.Q AND NOT Blocked;",
+          "IF CM.State.Edge THEN",
+          "  Blocked := TRUE;",
+          "END_IF",
+          " ",
+          "Block_Timer(IN:=Blocked, PT:=T#2S);",
+          "IF Block_Timer.Q THEN",
+          "  Blocked := FALSE;",
+          "END_IF"
+        ],
+        "Hw": [
+          "(* No Logic to fulfill*)"
+        ]
+      },
+      "simulation": {}
+    },
+    "Mccb": {
+      "name": "Mccb",
+      "description": "Control Module Type voor Moulded Case Circuit Breaker",
+      "datamodel": {
+        "Cmd": {
+          "Open": "BOOL",
+          "Close": "BOOL"
+        },
+        "State": {
+          "Closed": "BOOL",
+          "Closing": "BOOL",
+          "Opening": "BOOL"
+        },
+        "Hw": {
+          "In": {
+            "Xclosed": "BOOL",
+            "Xtrip": "BOOL"
+          },
+          "Out": {
+            "Xopen": "BOOL",
+            "Xclose": "BOOL"
+          }
+        },
+        "Alarm": {
+          "Trip": "BOOL",
+          "Discr": "BOOL",
+          "Failure": "BOOL"
+        }
+      },
+      "vars": {
+        "CloseDiscr": "BOOL",
+        "CloseDiscrTon": "TON",
+        "OpenDiscr": "BOOL",
+        "OpenDiscrTon": "TON",
+        "CmdCloseEdge": "R_TRIG",
+        "CmdOpenEdge": "R_TRIG"
+      },
+      "regions": {
+        "Cmd": [
+          "CmdCloseEdge(CLK:=CM.Cmd.Close);",
+          "IF CmdCloseEdge.Q THEN CM.Cmd.Open := FALSE; END_IF;",
+          "CmdOpenEdge(CLK:=CM.Cmd.Open);",
+          "IF CmdOpenEdge.Q THEN CM.Cmd.Close := FALSE; END_IF;",
+          "IF not CM.State.Closed AND CM.Cmd.Close THEN",
+          "  CM.State.Closing := True;",
+          "ELSIF CM.State.Closed OR CM.State.Opening THEN",
+          "  CM.State.Closing := False;",
+          "END_IF;",
+          "IF CM.State.Closed AND CM.Cmd.Open THEN",
+          "  CM.State.Opening := True;",
+          "ELSIF not CM.State.Closed OR CM.State.Closing THEN",
+          "  CM.State.Opening := False;",
+          "END_IF;"
+        ],
+        "State": [
+          "CM.State.Closed := CM.Hw.In.Xclosed;",
+          "IF not CM.State.Closed AND CM.Cmd.Close THEN",
+          "  CM.State.Closing := True;",
+          "ELSIF CM.State.Closed OR CM.State.Opening THEN",
+          "  CM.State.Closing := False;",
+          "END_IF;",
+          "IF CM.State.Closed AND CM.Cmd.Open THEN",
+          "  CM.State.Opening := True;",
+          "ELSIF not CM.State.Closed OR CM.State.Closing THEN",
+          "  CM.State.Opening := False;",
+          "END_IF;"
+        ],
+        "Hw": [
+          "CM.Hw.Out.Xopen := CM.State.Opening;",
+          "CM.Hw.Out.Xclose := CM.State.Closing;"
+        ],
+        "Alarm": [
+          "CloseDiscr := CM.Hw.Out.Xclose AND NOT CM.Hw.In.Xclosed;",
+          "OpenDiscr := CM.Hw.Out.Xopen AND CM.Hw.In.Xclosed;",
+          "CloseDiscrTON(IN:=CloseDiscr, PT:=T#10S);",
+          "OpenDiscrTON(IN:=OpenDiscr, PT:=T#10S);",
+          "CM.Alarm.Discr := CloseDiscrTON.Q OR OpenDiscrTON.Q;",
+          "CM.Alarm.Trip := NOT CM.Hw.In.Xtrip;",
+          "CM.Alarm.Failure := CM.Alarm.Discr OR CM.Alarm.Trip;"
+        ]
+      },
+      "simulation": {
+        "SrXclosed": {
+          "vars": {
+            "setXclosedTon": "TON",
+            "resetXclosedTon": "TON"
+          },
+          "Code": [
+            "  (* Dynamic simulation of Xclosed *)",
+            "  setXclosedTon(IN:=CM.Hw.Out.Xclose, PT:=T#7s);",
+            "  resetXclosedTon(IN:=CM.Hw.Out.Xopen, PT:=T#7s);",
+            "  IF SimCM.Cmd.SrXclosed THEN",
+            "     IF setXclosedTon.Q THEN",
+            "        SimCM.Cmd.Xclosed := TRUE;",
+            "     ELSIF resetXclosedTon.Q THEN",
+            "        SimCM.Cmd.Xclosed := FALSE;",
+            "     END_IF;",
+            "  END_IF;",
+            "  CM.Hw.In.Xclosed := SimCM.Cmd.Xclosed;",
+            "  CM.Hw.In.Xtrip := SimCM.Cmd.Xtrip;"
+          ]
+        }
+      }
+    },
+    "RgbLed": {
+      "name": "RgbLed",
+      "description": "Control Module Type voor Rgb Led",
+      "datamodel": {
+        "Cmd": {
+          "On": "BOOL",
+          "Off": "BOOL",
+          "Blink": "BOOL",
+          "BlinkSlow": "BOOL",
+          "BlinkFast": "BOOL",
+          "Color": "string"
+        },
+        "State": {
+          "On": "BOOL",
+          "Off": "BOOL",
+          "Blink": "BOOL"
+        },
+        "Hw": {
+          "Out": {
+            "Xout": "BOOL",
+            "xRed": "BOOL",
+            "xGreen": "BOOL",
+            "wRed": "WORD",
+            "wGreen": "WORD"
+          }
+        },
+        "Core": {
+          "State": {
+            "On": "BOOL",
+            "Off": "BOOL",
+            "Blink": "BOOL"
+          },
+          "Trans": {
+            "OnToOff": "BOOL",
+            "OnToBlink": "BOOL",
+            "OffToOn": "BOOL",
+            "OffToBlink": "BOOL",
+            "BlinkToOn": "BOOL",
+            "BlinkToOff": "BOOL"
+          }
+        },
+        "Param": {
+          "BlinkFreq": "REAL",
+          "BlinkSlowFreq": "REAL",
+          "BlinkFastFreq": "REAL"
+        }
+      },
+      "vars": {
+        "BlinkTimer": "TIME",
+        "Done": "BOOL",
+        "BlinkTON": "TON",
+        "Prev": "BOOL",
+        "Edge": "BOOL",
+        "TimerRun": "BOOL",
+        "Blinker": "BOOL",
+        "OnR_TRIG": "R_TRIG",
+        "OffR_TRIG": "R_TRIG",
+        "BlinkR_TRIG": "R_TRIG",
+        "BlinkSlowR_TRIG": "R_TRIG",
+        "BlinkFastR_TRIG": "R_TRIG",
+        "TimerValue": "TIME",
+        "Freq": "REAL"
+      },
+      "regions": {
+        "Hw": [
+          "IF CM.Cmd.BlinkFast THEN",
+          "  Freq := CM.Param.BlinkFastFreq;",
+          "ELSIF CM.Cmd.BlinkSlow THEN",
+          "  Freq := CM.Param.BlinkSlowFreq;",
+          "ELSE",
+          "  Freq := CM.Param.BlinkFreq;",
+          "END_IF",
+          "CM.Hw.Out.Xout := CM.Core.State.On OR (CM.Core.State.Blink AND Blinker);",
+          "",
+          "TimerRun := CM.Core.State.Blink AND NOT(Edge);",
+          "",
+          "IF Freq &gt; 0.0 AND Freq &lt; 20.0 THEN",
+          "  TimerValue := REAL_TO_TIME(1000.0/Freq);",
+          "ELSE",
+          "  TimerValue := T#300MS;",
+          "END_IF",
+          "",
+          "BlinkTON(IN:=TimerRun, PT:=TimerValue);",
+          "Done:=BlinkTON.Q;",
+          "BlinkTimer := BlinkTON.ET;",
+          "",
+          "Edge := Done and (not Prev);",
+          "Prev := Done;",
+          "",
+          "IF Edge THEN",
+          "  IF Blinker THEN Blinker:=False;",
+          "  ELSE Blinker:=True;",
+          "  END_IF",
+          "END_IF",
+          "",
+          "IF CM.Hw.Out.Xout AND CM.Cmd.Color='Red' THEN",
+          "  CM.Hw.Out.xRed := TRUE;",
+          "  CM.Hw.Out.xGreen := FALSE;",
+          "  CM.Hw.Out.wRed := REAL_TO_WORD(255.0/255.0*32767);",
+          "  CM.Hw.Out.wGreen := REAL_TO_WORD(0.0/255.0*32767);",
+          "ELSIF CM.Hw.Out.Xout AND CM.Cmd.Color='Green' THEN",
+          "  CM.Hw.Out.xRed := FALSE;",
+          "  CM.Hw.Out.xGreen := TRUE;",
+          "  CM.Hw.Out.wRed := REAL_TO_WORD(0.0/255.0*32767);",
+          "  CM.Hw.Out.wGreen := REAL_TO_WORD(210.0/255.0*32767);",
+          "ELSIF CM.Hw.Out.Xout AND CM.Cmd.Color='Orange' THEN",
+          "  CM.Hw.Out.xRed := TRUE;",
+          "  CM.Hw.Out.xGreen := TRUE;",
+          "  CM.Hw.Out.wRed := REAL_TO_WORD(255.0/255.0*32767);",
+          "  CM.Hw.Out.wGreen := REAL_TO_WORD(195.0/255.0*32767);",
+          "ELSE",
+          "  CM.Hw.Out.xRed := FALSE;",
+          "  CM.Hw.Out.xGreen := FALSE;",
+          "  CM.Hw.Out.wRed := REAL_TO_WORD(0.0/255.0*32767);",
+          "  CM.Hw.Out.wGreen := REAL_TO_WORD(0.0/255.0*32767);",
+          "END_IF"
+        ],
+        "State": [
+          "CM.State.On := CM.Core.State.On;",
+          "CM.State.Off := CM.Core.State.Off;",
+          "CM.State.Blink := CM.Core.State.Blink;"
+        ],
+        "Core": [
+          "IF (NOT CM.Core.State.On)",
+          "  AND (NOT CM.Core.State.Off)",
+          "  AND (NOT CM.Core.State.Blink)",
+          "     THEN CM.Core.State.Off:=TRUE;END_IF;",
+          "",
+          "IF CM.Core.State.Off THEN;",
+          "  IF CM.Core.Trans.OffToBlink THEN;",
+          "    CM.Core.State.Off := FALSE; CM.Core.State.Blink := TRUE;",
+          "  ELSIF CM.Core.Trans.OffToOn THEN;",
+          "    CM.Core.State.Off := FALSE; CM.Core.State.On := TRUE;",
+          "  END_IF;",
+          "ELSIF CM.Core.State.Blink THEN",
+          "  IF CM.Core.Trans.BlinkToOff THEN",
+          "    CM.Core.State.Blink := FALSE; CM.Core.State.Off := TRUE;",
+          "  ELSIF CM.Core.Trans.BlinkToOn THEN",
+          "    CM.Core.State.Blink := FALSE; CM.Core.State.On := TRUE;",
+          "  END_IF",
+          "ELSIF CM.Core.State.On THEN",
+          "  IF CM.Core.Trans.OnToOff THEN ",
+          "    CM.Core.State.On := FALSE; CM.Core.State.Off := TRUE;",
+          "  ELSIF CM.Core.Trans.OnToBlink THEN",
+          "    CM.Core.State.On := FALSE; CM.Core.State.Blink := TRUE;",
+          "  END_IF",
+          "END_IF"
+        ],
+        "Cmd": [
+          "CM.Core.Trans.OffToOn := CM.Cmd.On;",
+          "CM.Core.Trans.OnToOff := CM.Cmd.Off OR (NOT CM.Cmd.On AND NOT CM.Cmd.Blink AND NOT CM.Cmd.BlinkSlow AND NOT CM.Cmd.BlinkFast);",
+          "CM.Core.Trans.OnToBlink := CM.Cmd.Blink OR CM.Cmd.BlinkSlow OR CM.Cmd.BlinkFast;",
+          "CM.Core.Trans.OffToBlink := CM.Cmd.Blink OR CM.Cmd.BlinkSlow OR CM.Cmd.BlinkFast;",
+          "CM.Core.Trans.BlinkToOn := CM.Cmd.On;",
+          "CM.Core.Trans.BlinkToOff := CM.Cmd.Off OR (NOT CM.Cmd.On AND NOT CM.Cmd.Blink AND NOT CM.Cmd.BlinkSlow AND NOT CM.Cmd.BlinkFast);",
+          "",
+          "OnR_TRIG(CLK := CM.Cmd.On);",
+          "OffR_TRIG(CLK := CM.Cmd.Off);",
+          "BlinkR_TRIG(CLK := CM.Cmd.Blink);",
+          "BlinkSlowR_TRIG(CLK := CM.Cmd.BlinkSlow);",
+          "BlinkFastR_TRIG(CLK := CM.Cmd.BlinkFast);",
+          "IF OnR_TRIG.Q THEN",
+          "  CM.Cmd.Off := FALSE;",
+          "  CM.Cmd.Blink := FALSE;",
+          "  CM.Cmd.BlinkSlow := FALSE;",
+          "  CM.Cmd.BlinkFast := FALSE;",
+          "END_IF",
+          "",
+          "IF OffR_TRIG.Q THEN",
+          "  CM.Cmd.On := FALSE;",
+          "  CM.Cmd.Blink := FALSE;",
+          "  CM.Cmd.BlinkSlow := FALSE;",
+          "  CM.Cmd.BlinkFast := FALSE;",
+          "END_IF",
+          "",
+          "IF BlinkR_TRIG.Q THEN",
+          "  CM.Cmd.Off := FALSE;",
+          "  CM.Cmd.On := FALSE;",
+          "  CM.Cmd.BlinkSlow := FALSE;",
+          "  CM.Cmd.BlinkFast := FALSE;",
+          "END_IF",
+          "IF BlinkSlowR_TRIG.Q THEN",
+          "  CM.Cmd.Off := FALSE;",
+          "  CM.Cmd.On := FALSE;",
+          "  CM.Cmd.Blink := FALSE;",
+          "  CM.Cmd.BlinkFast := FALSE;",
+          "END_IF",
+          "IF BlinkFastR_TRIG.Q THEN",
+          "  CM.Cmd.Off := FALSE;",
+          "  CM.Cmd.On := FALSE;",
+          "  CM.Cmd.Blink := FALSE;",
+          "  CM.Cmd.BlinkSlow := FALSE;",
+          "END_IF"
+        ]
+      }
+    },
+    "DigOut": {
+      "name": "DigOut",
+      "description": "Control Module Type voor Digitale output zonder feedback",
+      "datamodel": {
+        "Cmd": {
+          "On": "BOOL"
+        },
+        "State": {
+          "On": "BOOL",
+          "Off": "BOOL"
+        },
+        "Hw": {
+          "Out": {
+            "Xout": "BOOL"
+          }
+        }
+      },
+      "vars": {
+      },
+      "regions": {
+        "State": [
+          "CM.State.On := CM.Cmd.On;",
+          "CM.State.Off := not CM.State.On;"
+        ],
+        "Hw": [
+          "CM.Hw.Out.Xout := CM.State.On;"
+        ]
+      }
+    },
+    "SoftBuzz": {
+      "name": "SoftBuzz",
+      "description": "Control Module Type voor een soft buzzer, die niet al te lawaaierig is",
+      "datamodel": {
+        "Cmd": {
+          "On": "BOOL",
+          "Sleep": "BOOL"
+        },
+        "State": {
+          "On": "BOOL",
+          "Off": "BOOL",
+          "Sleeping": "BOOL",
+          "DelayAct": "BOOL"
+        },
+        "Hw": {
+          "Out": {
+            "Xout": "BOOL"
+          }
+        }
+      },
+      "vars": {
+        "DelayActive": "BOOL",
+        "BuzzerNotAllowed": "BOOL",
+        "SleepTon": "TON",
+        "Hour": "UINT",
+        "StartHour": "INT := 8",
+        "StopHour": "INT := 18",
+        "DayOfWeek": "UINT",
+        "BuzzerOnTon": "TON",
+        "DelayTon": "TON",
+        "stTime": "SysTimeRtc.SYSTIMEDATE;",
+        "dwTime": "DWORD",
+        "dwLocalTime": "DWORD",
+        "pGetResult": "SysTimeRtc.SysTypes.RTS_IEC_RESULT;",
+        "pConvertResult": "SysTimeRtc.SysTypes.RTS_IEC_RESULT;",
+        "pConvertLocalResult": "SysTimeRtc.SysTypes.RTS_IEC_RESULT;"
+      },
+      "regions": {
+        "State": [
+          "(* ==== Base Conditions === *)",
+          "BuzzerNotAllowed := FALSE;",
+          "",
+          "// Sleep timer",
+          "SleepTon(IN := CM.Cmd.Sleep, PT := T#3600s);",
+          "IF SleepTon.Q THEN",
+          "  CM.Cmd.Sleep := FALSE;",
+          "END_IF",
+          "",
+          "// Get time and day",
+          "dwTime := SysTimeRtc.SysTimeRtcGet(pGetResult);",
+          "pConvertLocalResult := SysTimeRtc.SysTimeRtcConvertUtcToLocal(dwTime, dwLocalTime);",
+          "pConvertResult := SysTimeRtc.SysTimeRtcConvertUtcToDate(dwLocalTime, stTime);",
+          "Hour := stTime.wHour;",
+          "DayOfWeek := stTime.wDayOfWeek;",
+          "",
+          "(* ==== Centralized blocking logic === *)",
+          "IF CM.Cmd.Sleep THEN",
+          "  BuzzerNotAllowed := TRUE;",
+          "END_IF",
+          "",
+          "IF Hour &lt; StartHour OR Hour &gt; StopHour THEN",
+          "  BuzzerNotAllowed := TRUE;",
+          "END_IF",
+          "",
+          "IF DayOfWeek >= 6 THEN",
+          "  BuzzerNotAllowed := TRUE;",
+          "END_IF",
+          "",
+          "(* ==== Timer logic === *)",
+          "",
+          "// Buzzer ON timer",
+          "BuzzerOnTon(IN := CM.Cmd.On AND NOT BuzzerNotAllowed AND NOT DelayActive, PT := T#10s);",
+          "// When buzzer finishes -> start delay",
+          "IF BuzzerOnTon.Q THEN",
+          "  DelayActive := TRUE;",
+          "END_IF",
+          "",
+          "// Delay timer",
+          "DelayTon(IN := DelayActive, PT := T#60s);",
+          "// When delay finishes -> clear delay",
+          "IF DelayTon.Q THEN",
+          "  DelayActive := FALSE;",
+          "END_IF",
+          "",
+          "CM.State.Sleeping := CM.Cmd.Sleep;",
+          "CM.State.DelayAct := DelayActive;",
+          "CM.State.On := CM.Cmd.On AND NOT BuzzerNotAllowed AND NOT DelayActive;",
+          "CM.State.Off := not CM.State.On;"
+        ],
+        "Hw": [
+          "CM.Hw.Out.Xout := CM.State.On;"
+        ]
+      }
+    },
+    "DigOutFb": {
+      "name": "DigOutFb",
+      "description": "Control Module Type voor Digitale output met feedback",
+      "datamodel": {
+        "Cmd": {
+          "On": "BOOL"
+        },
+        "State": {
+          "On": "BOOL",
+          "Off": "BOOL",
+          "Fb": "BOOL"
+        },
+        "Hw": {
+          "In": {
+            "Xin": "BOOL"
+          },
+          "Out": {
+            "Xout": "BOOL"
+          }
+        },
+        "Alarm": {
+          "OnDiscr": "BOOL",
+          "OffDiscr": "BOOL",
+          "Failure": "BOOL"
+        }
+      },
+      "vars": {
+        "OnDiscr": "BOOL",
+        "OnDiscrTon": "TON",
+        "OffDiscr": "BOOL",
+        "OffDiscrTon": "TON"
+      },
+      "regions": {
+        "State": [
+          "CM.State.On := CM.Cmd.On;",
+          "CM.State.Off := not CM.State.On;",
+          "CM.State.Fb := CM.Hw.In.Xin;"
+        ],
+        "Hw": [
+          "CM.Hw.Out.Xout := CM.State.On;"
+        ],
+        "Alarm": [
+          "OnDiscr := CM.Hw.Out.Xout AND NOT CM.Hw.In.Xin;",
+          "OffDiscr := NOT CM.Hw.Out.Xout AND CM.Hw.In.Xin;",
+          "OnDiscrTON(IN:=OnDiscr, PT:=T#2S);",
+          "OffDiscrTON(IN:=OffDiscr, PT:=T#0.5S);",
+          "CM.Alarm.OnDiscr := OnDiscrTON.Q;",
+          "CM.Alarm.OffDiscr := OffDiscrTON.Q;",
+          "CM.Alarm.Failure:=OnDiscrTON.Q OR OffDiscrTON.Q;"
+        ]
+      },
+      "simulation": {
+        "ConXin": {
+          "vars": {
+            "setXinTon": "TON"
+          },
+          "Code": [
+            "  (* Dynamic simulation of Xin *)",
+            "  setXinTon(IN:=CM.Hw.Out.Xout, PT:=T#0.3s);",
+            "  IF SimCM.Cmd.ConXin THEN",
+            "     SimCM.Cmd.Xin := setXinTon.Q;",
+            "  END_IF;",
+            "  CM.Hw.In.Xin := SimCM.Cmd.Xin;"
+          ]
+        }
+      }
+    },
+    "Battery": {
+      "name": "Battery",
+      "description": "Control Module Type voor Battery core data",
+      "datamodel": {
+        "State": {
+          "Full": "BOOL",
+          "Soc": "INT",
+          "AboveLowSocShutdown": "BOOL",
+          "AboveLowSocCleared": "BOOL",
+          "BelowLowSocShutdown": "BOOL",
+          "BelowLowSocPreAlarm": "BOOL"
+        },
+        "Hw": {
+          "In": {
+            "Wsoc": "WORD",
+            "Xfull": "BOOL"
+          },
+          "Out": {
+            "Xstart": "BOOL",
+            "Xstop": "BOOL"
+          }
+        },
+        "Param": {
+          "LowSocShutdown": "INT",
+          "LowSocCleared": "INT",
+          "LowSocPreAlarm": "INT"
+        },
+        "Alarm": {
+          "SocInvalid": "BOOL",
+          "RapidChange": "BOOL",
+          "DischProhib": "BOOL",
+          "CellVoltLow": "BOOL"
+        },
+        "Cmd": {
+            "DischProhib": "BOOL",
+            "Start": "BOOL",
+            "Stop": "BOOL"
+        }
+      },
+      "vars": {
+        "PrevSoc": "INT",
+        "SampleTON": "TON",
+        "SampleTimeDone": "BOOL",
+        "OkCntr": "INT",
+        "Soc": "INT"
+      },
+      "regions": {
+        "State": [
+          "CM.State.Full := CM.Hw.In.Xfull;",
+          "CM.State.Soc := WORD_TO_INT(CM.Hw.In.Wsoc);",
+          "",
+          "IF CM.State.Soc &gt; 0 THEN",
+          "  Soc := CM.State.Soc;",
+          "ELSE",
+          "  Soc := PrevSoc;",
+          "END_IF",
+          "CM.State.AboveLowSocShutdown := Soc >= CM.Param.LowSocShutdown;",
+          "CM.State.AboveLowSocCleared := Soc >= CM.Param.LowSocCleared;",
+          "CM.State.BelowLowSocShutdown := Soc &lt; CM.Param.LowSocShutdown;",
+          "CM.State.BelowLowSocPreAlarm := Soc &lt; CM.Param.LowSocPreAlarm;"
+        ],
+        "Alarm": [
+          "CM.Alarm.SocInvalid := CM.state.Soc = 0;",
+          "SampleTON(IN:=NOT SampleTimeDone, PT:=T#1s);",
+          "SampleTimeDone := SampleTON.Q;",
+          "IF SampleTimeDone THEN",
+          "  IF ABS(CM.state.Soc-PrevSoc) &gt; 5 THEN",
+          "    CM.Alarm.RapidChange := TRUE;",
+          "    OkCntr := 0;",
+          "  ELSIF OkCntr &lt; 10 THEN",
+          "    OkCntr := OkCntr + 1;",
+          "  END_IF;",
+          "  IF OkCntr >= 10 THEN;",
+          "    CM.Alarm.RapidChange := FALSE;",
+          "  END_IF;",
+          "  PrevSoc := CM.state.Soc;",
+          "END_IF;",
+          "CM.Alarm.DischProhib := CM.Cmd.DischProhib;"
+        ],
+        "Hw": [
+          "CM.Hw.Out.Xstart := CM.Cmd.Start;",
+          "CM.Hw.Out.Xstop := CM.Cmd.Stop;"
+        ]
+      },
+      "simulation": {}
+    }
+  }
+}
