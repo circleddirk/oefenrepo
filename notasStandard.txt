@@ -91,6 +91,10 @@ Hoe zit het nu? Er is iets wat aangestuurd wordt vanuit de plc, op de 240 zowiez
 
 fake wijziging in branch maken.
 
+WriteBatteryOnCommand staat bij modbus slave GRS het laatste channel. Dit wordt geschreven op een relatief complexe manier via FB CuTurnBattControllerOnandOff, die meerdere keren opgeroepen wordt 
+in CE_HwOut met hetzelfde instantiegeheugen. De laatste aanroep zal idd geldig zijn, maar omdat ze steeds voorwaardelijk aangeroepen worden komt dit waarschijnlijk goed.
+Plan: in cm Battery een Hw Out maken die hiervoor dient., en ook een Cmd maken die de startup en stop implementeerbaar maakt. In ieder geval dan met die Cmd de Hw Out verknopen, mogelijks ook met state of andere vars.
 
+check. Mss ook control module maken van Grid? met metingen, no grid, parameters?
 
 

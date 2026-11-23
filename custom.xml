@@ -1,0 +1,396 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<project xmlns="http://www.plcopen.org/xml/tc6_0200">
+  <fileHeader companyName="" productName="CODESYS" productVersion="CODESYS V3.5 SP22 Patch 3" creationDateTime="2026-11-23T16:47:05.1132821" />
+  <contentHeader name="dockerPlc.project" modificationDateTime="2026-11-23T16:11:00.138753">
+    <coordinateInfo>
+      <fbd>
+        <scaling x="1" y="1" />
+      </fbd>
+      <ld>
+        <scaling x="1" y="1" />
+      </ld>
+      <sfc>
+        <scaling x="1" y="1" />
+      </sfc>
+    </coordinateInfo>
+    <addData>
+      <data name="http://www.3s-software.com/plcopenxml/projectinformation" handleUnknown="implementation">
+        <ProjectInformation />
+      </data>
+    </addData>
+  </contentHeader>
+  <types>
+    <dataTypes />
+    <pous>
+      <pou name="CE_HwIn" pouType="functionBlock">
+        <interface>
+          <inOutVars>
+            <variable name="Operating">
+              <type>
+                <derived name="OperatingType" />
+              </type>
+            </variable>
+            <variable name="TempControl">
+              <type>
+                <derived name="TempControlType" />
+              </type>
+            </variable>
+            <variable name="Meas">
+              <type>
+                <derived name="MeasType" />
+              </type>
+            </variable>
+          </inOutVars>
+        </interface>
+        <body>
+          <ST>
+            <xhtml xmlns="http://www.w3.org/1999/xhtml">
+(* Hardware Inputs "BovHfd" Equipment Module *)
+{region "BovHfd"}
+
+{endregion}
+(* Hardware Inputs "BenHfd" Equipment Module *)
+{region "BenHfd"}
+
+{endregion}
+(* Hardware Inputs "Common" Equipment Module *)
+{region "Common"}
+
+{endregion}</xhtml>
+          </ST>
+        </body>
+        <addData>
+          <data name="http://www.3s-software.com/plcopenxml/objectid" handleUnknown="discard">
+            <ObjectId>cacffa90-fdab-422c-b557-b0bab7062355</ObjectId>
+          </data>
+        </addData>
+      </pou>
+      <pou name="CE_HwOut" pouType="functionBlock">
+        <interface>
+          <inOutVars>
+            <variable name="Operating">
+              <type>
+                <derived name="OperatingType" />
+              </type>
+            </variable>
+            <variable name="TempControl">
+              <type>
+                <derived name="TempControlType" />
+              </type>
+            </variable>
+            <variable name="Meas">
+              <type>
+                <derived name="MeasType" />
+              </type>
+            </variable>
+          </inOutVars>
+        </interface>
+        <body>
+          <ST>
+            <xhtml xmlns="http://www.w3.org/1999/xhtml">
+(* Hardware Outputs "BovHfd" Equipment Module *)
+{region "BovHfd"}
+
+{endregion}
+(* Hardware Outputs "BenHfd" Equipment Module *)
+{region "BenHfd"}
+
+{endregion}
+(* Hardware Outputs "Common" Equipment Module *)
+{region "Common"}
+{endregion}</xhtml>
+          </ST>
+        </body>
+        <addData>
+          <data name="http://www.3s-software.com/plcopenxml/objectid" handleUnknown="discard">
+            <ObjectId>cbac9b66-0e97-4958-8b48-932ed220cc1a</ObjectId>
+          </data>
+        </addData>
+      </pou>
+      <pou name="CP_EmOperating" pouType="functionBlock">
+        <interface>
+          <inOutVars>
+            <variable name="Operating">
+              <type>
+                <derived name="OperatingType" />
+              </type>
+            </variable>
+          </inOutVars>
+          <localVars>
+            <variable name="WaitForStartupTimer">
+              <type>
+                <derived name="TON" />
+              </type>
+            </variable>
+            <variable name="ScreenTimer">
+              <type>
+                <derived name="TON" />
+              </type>
+            </variable>
+            <variable name="AutoRestart">
+              <type>
+                <BOOL />
+              </type>
+            </variable>
+            <variable name="chargeBecauseLow">
+              <type>
+                <BOOL />
+              </type>
+            </variable>
+            <variable name="ChargeEdge">
+              <type>
+                <derived name="R_TRIG" />
+              </type>
+            </variable>
+            <variable name="ChargeCounter">
+              <type>
+                <INT />
+              </type>
+            </variable>
+            <variable name="NoGridTON">
+              <type>
+                <derived name="TON" />
+              </type>
+            </variable>
+            <variable name="WentOn">
+              <type>
+                <BOOL />
+              </type>
+            </variable>
+            <variable name="ShutdownTimer">
+              <type>
+                <derived name="TON" />
+              </type>
+            </variable>
+            <variable name="ShutdownComplete">
+              <type>
+                <BOOL />
+              </type>
+            </variable>
+          </localVars>
+        </interface>
+        <body>
+          <ST>
+            <xhtml xmlns="http://www.w3.org/1999/xhtml">
+//AutoRestart logic
+ChargeEdge(CLK:=Operating.OperatingFlow.State.Charge);
+IF ChargeEdge.Q THEN
+	IF Operating.Batt.State.BelowLowSocShutdown THEN
+		ChargeBecauseLow := TRUE;
+	ELSE
+		ChargebecauseLow := FALSE;
+	END_IF
+END_IF
+
+IF ChargeBecauseLow AND ChargeCounter = 0 THEN
+	AutoRestart := TRUE;
+ELSE
+	AutoRestart := FALSE;
+END_IF
+
+IF ChargeBecauseLow AND AutoRestart AND Operating.OperatingFlow.State.Charge AND Operating.Batt.State.AboveLowSocCleared THEN
+	ChargeCounter := 1;
+END_IF
+
+IF Operating.Batt.State.Soc &gt;= 90.0 THEN
+	ChargeCounter := 0;
+END_IF
+
+// transities
+//1. from startup
+// delayed start
+WaitForStartupTimer(IN:=Operating.OperatingFlow.State.Startup AND Operating.Rfid.State.Sv , PT:=T#210S); 
+
+Operating.OperatingFlow.Trans.StartupToActive := WaitForStartupTimer.Q AND Operating.PushBtn.State.ShortEdge AND Operating.Batt.State.AboveLowSocShutdown;
+
+Operating.OperatingFlow.Trans.StartupToCharge := WaitForStartupTimer.Q AND Operating.PushBtn.State.ShortEdge AND Operating.Batt.State.BelowLowSocShutdown;
+
+//Operating.OperatingFlow.Trans.StartupToError := Operating.Error.ErrorActive;
+
+//2. from active
+//Operating.OperatingFlow.Trans.ActiveToStartup := FALSE;
+(*
+Operating.OperatingFlow.Trans.ActiveToCharge := Operating.PushBtn.State.ShortEdge OR (Operating.Batt.State.BelowLowSocShutdown AND NOT Operating.Batt.Alarm.SocInvalid)
+OR (Operating.StateInfo.BMS1DischargingProhibited OR Operating.StateInfo.BMS2DischargingProhibited OR Operating.StateInfo.BMS3DischargingProhibited)OR (Operating.StateInfo.CellVoltage.Minimum &lt; 3.1 AND Operating.StateInfo.CellVoltage.Minimum &gt; 0.0)
+OR NOT Operating.RfidClosed.State.Sv ;
+*)
+Operating.OperatingFlow.Trans.ActiveToCharge := Operating.PushBtn.State.ShortEdge OR Operating.Batt.State.BelowLowSocShutdown
+OR Operating.Batt.Alarm.DischProhib OR Operating.Batt.Alarm.CellVoltLow OR NOT Operating.Rfid.State.Sv;
+
+//Operating.OperatingFlow.Trans.ActiveToError := Operating.Error.ErrorActive;
+
+//3. from charge
+//Operating.OperatingFlow.Trans.ChargeToStartup := FALSE;
+
+Operating.OperatingFlow.Trans.ChargeToActive := ( (Operating.Batt.State.AboveLowSocCleared AND (Operating.PushBtn.State.ShortEdge OR AutoRestart)) 
+OR Operating.Batt.State.Full)
+AND Operating.Rfid.State.Sv;
+
+//Operating.OperatingFlow.Trans.ChargeToError := Operating.Error.ErrorActive;
+
+// actions
+//LEDs
+Operating.Rgb.Cmd.Off := (Operating.OperatingFlow.State.Startup AND NOT(WaitForStartupTimer.Q));// OR ShutDownComplete;
+Operating.Rgb.Cmd.On := Operating.OperatingFlow.State.Active OR Operating.OperatingFlow.State.Error;
+Operating.Rgb.Cmd.BlinkSlow := Operating.OperatingFlow.State.Charge OR (Operating.OperatingFlow.State.Startup AND WaitForStartupTimer.Q);
+Operating.Rgb.Cmd.Blink := Operating.OperatingFlow.State.Softreset;
+IF (Operating.OperatingFlow.State.Active OR Operating.OperatingFlow.State.Charge OR Operating.OperatingFlow.State.Startup) AND Operating.Rfid.State.Sv THEN
+	IF Operating.Batt.State.AboveLowSocCleared THEN
+		Operating.Rgb.Cmd.Color := 'Green';
+	ELSIF Operating.Batt.State.BelowLowSocPreAlarm THEN
+		Operating.Rgb.Cmd.Color := 'Orange';
+	END_IF
+END_IF
+IF Operating.OperatingFlow.State.Error THEN
+	Operating.Rgb.Cmd.Color := 'Red';
+END_IF
+IF Operating.OperatingFlow.State.Softreset THEN
+	Operating.Rgb.Cmd.Color := 'Orange';
+END_IF
+(*
+IF ShutdownComplete THEN
+	Operating.Rgb.Cmd.Color := 'None';
+END_IF
+*)
+//AC-out
+Operating.AC_OUT.Cmd.Close := Operating.OperatingFlow.State.Active;
+Operating.AC_OUT.Cmd.Open := Operating.OperatingFlow.State.Charge OR Operating.OperatingFlow.State.Error OR Operating.OperatingFlow.State.Startup;
+
+//Buzzer
+IF Operating.OperatingFlow.State.Active AND Operating.Batt.State.BelowLowSocPreAlarm THEN
+	Operating.Buzzer.Cmd.On := TRUE;
+ELSIF Operating.Batt.State.AboveLowSocCleared OR NOT Operating.OperatingFlow.State.Active THEN
+	Operating.Buzzer.Cmd.On := FALSE;
+END_IF;
+
+//Startup
+ScreenTimer(IN := Operating.OperatingFlow.State.Startup, PT := T#30S);
+Operating.Batt.Cmd.Start := Operating.Rfid.State.Sv AND Operating.OperatingFlow.State.Startup AND ScreenTimer.Q;
+
+//Shutdown
+IF Operating.Rfid.State.Sv THEN
+	WentOn := TRUE;
+END_IF
+NoGridTON(IN:=(Operating.OperatingFlow.State.Startup OR Operating.OperatingFlow.State.Charge) AND Operating.OperatingFlow.NoGrid, PT:=T#1H);
+Operating.Batt.Cmd.Stop := (NOT Operating.Rfid.State.Sv AND WentOn) OR NoGridTon.Q OR Operating.OperatingFlow.Trans.ResetToSoftreset;
+ShutDownTimer(IN := Operating.Batt.Cmd.Stop, PT:=T#15S);
+IF ShutDowntimer.Q THEN
+	IF NOT Operating.OperatingFlow.Trans.ResetToSoftreset THEN
+		ShutdownComplete := TRUE;
+	END_IF
+	WentOn := False;
+END_IF
+</xhtml>
+          </ST>
+        </body>
+        <addData>
+          <data name="http://www.3s-software.com/plcopenxml/objectid" handleUnknown="discard">
+            <ObjectId>05deb137-50ae-498b-acad-acffdfd69e33</ObjectId>
+          </data>
+        </addData>
+      </pou>
+      <pou name="Init" pouType="functionBlock">
+        <interface />
+        <body>
+          <ST>
+            <xhtml xmlns="http://www.w3.org/1999/xhtml">
+Models.Operating.Batt.Param.LowSocPreAlarm 	:= 20;
+Models.Operating.Batt.Param.LowSocCleared 	:= 23;
+Models.Operating.Batt.Param.LowSocShutdown 	:= 15;
+
+Models.Operating.Rgb.Param.BlinkSlowFreq := 0.2;
+Models.Operating.Rgb.Param.BlinkFreq := 1;
+Models.Operating.Rgb.Param.BlinkFastFreq := 3;
+</xhtml>
+          </ST>
+        </body>
+        <addData>
+          <data name="http://www.3s-software.com/plcopenxml/objectid" handleUnknown="discard">
+            <ObjectId>34eda426-d5ba-489b-ae75-d399233817d3</ObjectId>
+          </data>
+        </addData>
+      </pou>
+      <pou name="Main" pouType="program">
+        <interface>
+          <localVars>
+            <variable name="Init_Inst">
+              <type>
+                <derived name="Init" />
+              </type>
+            </variable>
+            <variable name="CE_HwIn_Inst">
+              <type>
+                <derived name="CE_HwIn" />
+              </type>
+            </variable>
+            <variable name="CE_Sim_Inst">
+              <type>
+                <derived name="CE_Sim" />
+              </type>
+            </variable>
+            <variable name="CP_Ems_Inst">
+              <type>
+                <derived name="CP_Ems" />
+              </type>
+            </variable>
+            <variable name="CE_HwOut_Inst">
+              <type>
+                <derived name="CE_HwOut" />
+              </type>
+              <documentation>
+                <xhtml xmlns="http://www.w3.org/1999/xhtml">CE_Opc_Inst: CE_Opc;</xhtml>
+              </documentation>
+            </variable>
+            <variable name="EM_Operating_Inst">
+              <type>
+                <derived name="EM_Operating" />
+              </type>
+            </variable>
+            <variable name="EM_TempControl_Inst">
+              <type>
+                <derived name="EM_TempControl" />
+              </type>
+            </variable>
+            <variable name="EM_Meas_Inst">
+              <type>
+                <derived name="EM_Meas" />
+              </type>
+            </variable>
+          </localVars>
+        </interface>
+        <body>
+          <ST>
+            <xhtml xmlns="http://www.w3.org/1999/xhtml">Init_inst();
+CE_HwIn_Inst(Operating:=Models.Operating,TempControl:=Models.TempControl,Meas:=Models.Meas);
+CE_Sim_Inst(Operating:=Models.Operating,SimOperating:=Models.SimOperating,TempControl:=Models.TempControl,SimTempControl:=Models.SimTempControl,Meas:=Models.Meas,SimMeas:=Models.SimMeas);
+EM_Operating_Inst(Operating:=Models.Operating);
+EM_TempControl_Inst(TempControl:=Models.TempControl);
+EM_Meas_Inst(Meas:=Models.Meas);
+CP_Ems_Inst(Operating:=Models.Operating,TempControl:=Models.TempControl,Meas:=Models.Meas);
+//CE_Opc_Inst(Operating:=Models.Operating,TempControl:=Models.TempControl,Meas:=Models.Meas);
+CE_HwOut_Inst(Operating:=Models.Operating,TempControl:=Models.TempControl,Meas:=Models.Meas);</xhtml>
+          </ST>
+        </body>
+        <addData>
+          <data name="http://www.3s-software.com/plcopenxml/objectid" handleUnknown="discard">
+            <ObjectId>8357ce22-74c4-444c-8547-14c1a341a628</ObjectId>
+          </data>
+        </addData>
+      </pou>
+    </pous>
+  </types>
+  <instances>
+    <configurations />
+  </instances>
+  <addData>
+    <data name="http://www.3s-software.com/plcopenxml/projectstructure" handleUnknown="discard">
+      <ProjectStructure>
+        <Object Name="CE_HwIn" ObjectId="cacffa90-fdab-422c-b557-b0bab7062355" />
+        <Object Name="CE_HwOut" ObjectId="cbac9b66-0e97-4958-8b48-932ed220cc1a" />
+        <Object Name="CP_EmOperating" ObjectId="05deb137-50ae-498b-acad-acffdfd69e33" />
+        <Object Name="Init" ObjectId="34eda426-d5ba-489b-ae75-d399233817d3" />
+        <Object Name="Main" ObjectId="8357ce22-74c4-444c-8547-14c1a341a628" />
+      </ProjectStructure>
+    </data>
+  </addData>
+</project>
